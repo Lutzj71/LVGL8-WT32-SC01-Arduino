@@ -151,6 +151,31 @@ void loop()
     }
   }
 
+  static void checkbox_event_handler(lv_event_t * e)
+  {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_VALUE_CHANGED)
+    {
+      LV_LOG_USER("Check Toggled");
+      Serial.println("check Toggled");
+    }
+  }
+
+  static void switch_event_handler(lv_event_t * e)
+  {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_VALUE_CHANGED)
+    {
+      LV_LOG_USER("Switch toggled");
+      Serial.println("Switch toggled");
+    }
+  }
+
+  static void slider_event_handler(lv_event_t * e)
+  {
+    lv_event_code_t code = lv_event_get_code(e);
+  }
+
   void lv_button_demo(void)
   {
     lv_obj_t *label;
@@ -177,4 +202,23 @@ void loop()
     label = lv_label_create(btn2);
     lv_label_set_text(label, "Toggle Button");
     lv_obj_center(label);
+
+    lv_obj_t *cb1 = lv_checkbox_create(lv_scr_act());
+    lv_obj_add_event_cb(cb1, checkbox_event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_add_flag(cb1, LV_OBJ_FLAG_CHECKABLE);
+    lv_obj_set_pos(cb1, 250, 170);   /*Set its position*/
+    lv_obj_set_size(cb1, 120, 50);   /*Set its size*/
+    lv_checkbox_set_text_static(cb1, "Fan ON");
+
+    lv_obj_t *sw1 = lv_switch_create(lv_scr_act());
+    lv_obj_add_event_cb(sw1, switch_event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_add_flag(sw1, LV_OBJ_FLAG_CHECKABLE);
+    lv_obj_set_pos(sw1, 50, 210);   /*Set its position*/
+    
+
+    lv_obj_t *sl1 = lv_slider_create(lv_scr_act());
+    lv_obj_add_event_cb(sl1, slider_event_handler, LV_EVENT_ALL, NULL);
+    lv_slider_set_range(sl1, 0, 100);
+    lv_obj_set_pos(sl1, 50, 250);   /*Set its position*/
+
   }
