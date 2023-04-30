@@ -11,6 +11,15 @@
 #include <LovyanGFX.hpp> // main library
 static LGFX lcd; // declare display variable
 
+#include <WiFi.h>
+#include <PubSubClient.h>
+String ssid =     "ILMMJ-TRI";
+String password = "majaimichal";
+String mqtt_server = "192.168.1.17";
+String clientId = "Bathroom";
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 #include <lvgl.h>
 #include "lv_conf.h"
 /*** Setup screen resolution for LVGL ***/
@@ -29,9 +38,78 @@ void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
 void lv_button_demo(void);
 
+static lv_obj_t *label_slider;
+
+void setup_wifi() {
+
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid.c_str(), password.c_str());
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  randomSeed(micros());
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+
+void reconnect() 
+{
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("outTopic", "hello world");
+      // ... and resubscribe
+      client.subscribe("inTopic");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+  // Switch on the LED if an 1 was received as first character
+  if ((char)payload[0] == '1') {
+  //  digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
+    // but actually the LED is on; this is because
+    // it is active low on the ESP-01)
+  } else {
+  //  digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
+  }
+
+}
+
 void setup(void)
 {
-
   Serial.begin(115200); /* prepare for possible serial debug */
 
   lcd.init(); // Initialize LovyanGFX
@@ -65,8 +143,12 @@ void setup(void)
   LVGL_Arduino += String('v') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
   lv_obj_t *label = lv_label_create(lv_scr_act()); // full screen as the parent
   lv_label_set_text(label, LVGL_Arduino.c_str());  // set label text
-  lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 20);      // Center but 20 from the top
+  lv_obj_align(label, LV_ALIGN_TOP_RIGHT, 0, 20);      // Center but 20 from the top
 
+  setup_wifi();
+  client.setServer(mqtt_server.c_str(), 1883);
+  client.setCallback(callback);
+  reconnect() ;
   lv_button_demo();
 }
 
@@ -74,6 +156,11 @@ void loop()
 {
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);
+  if (!client.connected()) 
+  {
+    reconnect();
+  }
+  client.loop();
 
 #ifdef DRAW_ON_SCREEN
   /*** Draw on screen with touch ***/
@@ -148,6 +235,7 @@ void loop()
     {
       LV_LOG_USER("Toggled");
       Serial.println("Toggled");
+      client.publish("Button", "toggled");
     }
   }
 
@@ -174,6 +262,12 @@ void loop()
   static void slider_event_handler(lv_event_t * e)
   {
     lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_VALUE_CHANGED)
+    {
+      lv_obj_t *slider = lv_event_get_target(e);
+      lv_label_set_text_fmt(label_slider, "%"LV_PRId32, lv_slider_get_value(slider));
+      lv_obj_align_to(label_slider, slider, LV_ALIGN_OUT_TOP_MID, 0, -15);    /*Align top of the slider*/
+    }
   }
 
   void lv_button_demo(void)
@@ -184,9 +278,10 @@ void loop()
     lv_obj_t *btn1 = lv_btn_create(lv_scr_act());
     lv_obj_add_event_cb(btn1, counter_event_handler, LV_EVENT_ALL, NULL);
 
-    lv_obj_set_pos(btn1, 100, 100);   /*Set its position*/
-    lv_obj_set_size(btn1, 120, 50);   /*Set its size*/
+    lv_obj_set_pos(btn1, 20, 20);   /*Set its position*/
+    lv_obj_set_size(btn1, 250, 50);   /*Set its size*/
 
+    
 
     label = lv_label_create(btn1);
     lv_label_set_text(label, "Button");
@@ -196,10 +291,9 @@ void loop()
     lv_obj_t *btn2 = lv_btn_create(lv_scr_act());
     lv_obj_add_event_cb(btn2, toggle_event_handler, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(btn2, LV_OBJ_FLAG_CHECKABLE);
-    lv_obj_set_pos(btn2, 250, 100);   /*Set its position*/
-    lv_obj_set_size(btn2, 120, 50);   /*Set its size*/
+    lv_obj_set_pos(btn2, 20, 80);   /*Set its position*/
+    lv_obj_set_size(btn2, 250, 50);   /*Set its size*/
 
-    label = lv_label_create(btn2);
     lv_label_set_text(label, "Toggle Button");
     lv_obj_center(label);
 
@@ -215,10 +309,12 @@ void loop()
     lv_obj_add_flag(sw1, LV_OBJ_FLAG_CHECKABLE);
     lv_obj_set_pos(sw1, 50, 210);   /*Set its position*/
     
-
     lv_obj_t *sl1 = lv_slider_create(lv_scr_act());
     lv_obj_add_event_cb(sl1, slider_event_handler, LV_EVENT_ALL, NULL);
     lv_slider_set_range(sl1, 0, 100);
-    lv_obj_set_pos(sl1, 50, 250);   /*Set its position*/
+    lv_obj_set_pos(sl1, 20, 280);   /*Set its position*/
 
+    label_slider = lv_label_create(sl1);
+    lv_label_set_text(label_slider, "0");  // set label text
+    lv_obj_align_to(label_slider, sl1, LV_ALIGN_TOP_RIGHT, 0, -15);    /*Align top of the slider*/
   }
