@@ -3,20 +3,22 @@
 */
 #define LGFX_AUTODETECT // Autodetect board
 #define LGFX_USE_V1     // set to use new version of library
-//#define LV_CONF_INCLUDE_SIMPLE
+// #define LV_CONF_INCLUDE_SIMPLE
 
 /* Uncomment below line to draw on screen with touch */
-//#define DRAW_ON_SCREEN
+// #define DRAW_ON_SCREEN
 
 #include <LovyanGFX.hpp> // main library
-static LGFX lcd; // declare display variable
+//#include "D:\Users\LukaszJ\Documents\PlatformIO\Projects\LVGL8-WT32-SC01-Arduino\.pio\libdeps\esp32dev\lvgl\src\core\lv_obj_style.h"
+static LGFX lcd;         // declare display variable
 
 #include <WiFi.h>
 #include <PubSubClient.h>
-String ssid =     "ILMMJ-TRI";
+String ssid = "ILMMJ-TRI";
 String password = "majaimichal";
 String mqtt_server = "192.168.1.17";
-String clientId = "Bathroom";
+String clientId = "temperatury/Bathroom";
+#define TOPIC_TEMPERATURE "temperatury/wielicka"
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -27,6 +29,8 @@ static const uint16_t screenWidth = 480;
 static const uint16_t screenHeight = 320;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[screenWidth * 10];
+boolean state1 = false;
+boolean state2 = false;
 
 // Variables for touch x,y
 #ifdef DRAW_ON_SCREEN
@@ -39,8 +43,10 @@ void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
 void lv_button_demo(void);
 
 static lv_obj_t *label_slider;
+static lv_obj_t *label_tmp;
 
-void setup_wifi() {
+void setup_wifi()
+{
 
   delay(10);
   // We start by connecting to a WiFi network
@@ -51,7 +57,8 @@ void setup_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
@@ -64,20 +71,24 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-
-void reconnect() 
+void reconnect()
 {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!client.connected())
+  {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect(clientId.c_str())) {
+    if (client.connect(clientId.c_str()))
+    {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.publish("outTopic", "hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
-    } else {
+      if (client.subscribe(TOPIC_TEMPERATURE))
+        Serial.println("Subscribed to " TOPIC_TEMPERATURE);
+    }
+    else
+    {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
@@ -87,25 +98,31 @@ void reconnect()
   }
 }
 
-void callback(char* topic, byte* payload, unsigned int length) 
+void callback(char *topic, byte *payload, unsigned int length)
 {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) {
+  char buffer[10]={0};
+  memcpy(buffer,payload,length);
+  for (int i = 0; i < length; i++)
+  {
     Serial.print((char)payload[i]);
   }
   Serial.println();
+  lv_label_set_text(label_tmp, buffer);
 
   // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') {
-  //  digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
+  if ((char)payload[0] == '1')
+  {
+    //  digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
     // but actually the LED is on; this is because
     // it is active low on the ESP-01)
-  } else {
-  //  digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
   }
-
+  else
+  {
+    //  digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
+  }
 }
 
 void setup(void)
@@ -143,12 +160,33 @@ void setup(void)
   LVGL_Arduino += String('v') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
   lv_obj_t *label = lv_label_create(lv_scr_act()); // full screen as the parent
   lv_label_set_text(label, LVGL_Arduino.c_str());  // set label text
-  lv_obj_align(label, LV_ALIGN_TOP_RIGHT, 0, 20);      // Center but 20 from the top
+  lv_obj_align(label, LV_ALIGN_TOP_RIGHT, 0, 20);  // Center but 20 from the top
+
+  // static lv_style_t style;
+  // lv_style_init(&style);
+
+  // lv_style_set_radius(&style, 5);
+  // lv_style_set_bg_opa(&style, LV_OPA_COVER);
+  // lv_style_set_bg_color(&style, lv_palette_lighten(LV_PALETTE_GREY, 2));
+  // lv_style_set_border_width(&style, 2);
+  // lv_style_set_border_color(&style, lv_palette_main(LV_PALETTE_BLUE));
+  // lv_style_set_pad_all(&style, 10);
+
+  // lv_style_set_text_color(&style, lv_palette_main(LV_PALETTE_BLUE));
+  // lv_style_set_text_letter_space(&style, 5);
+  // lv_style_set_text_line_space(&style, 20);
+  // lv_style_set_text_decor(&style, LV_TEXT_DECOR_UNDERLINE);
+
+  String temp_str = "t = 0 ";
+  label_tmp = lv_label_create(lv_scr_act()); // full screen as the parent
+  // obj_add_style(label_tmp, &style, 0);
+  lv_label_set_text(label_tmp, LVGL_Arduino.c_str());  // set label text
+  lv_obj_align(label_tmp, LV_ALIGN_TOP_RIGHT, 0, 50);  // Center but 20 from the top
 
   setup_wifi();
   client.setServer(mqtt_server.c_str(), 1883);
   client.setCallback(callback);
-  reconnect() ;
+  reconnect();
   lv_button_demo();
 }
 
@@ -156,7 +194,7 @@ void loop()
 {
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);
-  if (!client.connected()) 
+  if (!client.connected())
   {
     reconnect();
   }
@@ -235,7 +273,10 @@ void loop()
     {
       LV_LOG_USER("Toggled");
       Serial.println("Toggled");
-      client.publish("Button", "toggled");
+      if(state1 = !state1)
+        client.publish("temperatury/Bathroom/Button1", "1");
+      else
+        client.publish("temperatury/Bathroom/Button1", "0");
     }
   }
 
@@ -246,6 +287,10 @@ void loop()
     {
       LV_LOG_USER("Check Toggled");
       Serial.println("check Toggled");
+      if(state2 = !state2)
+        client.publish("temperatury/Bathroom/Button2", "1");
+      else
+        client.publish("temperatury/Bathroom/Button2", "0");
     }
   }
 
@@ -265,8 +310,8 @@ void loop()
     if (code == LV_EVENT_VALUE_CHANGED)
     {
       lv_obj_t *slider = lv_event_get_target(e);
-      lv_label_set_text_fmt(label_slider, "%"LV_PRId32, lv_slider_get_value(slider));
-      lv_obj_align_to(label_slider, slider, LV_ALIGN_OUT_TOP_MID, 0, -15);    /*Align top of the slider*/
+      lv_label_set_text_fmt(label_slider, "%" LV_PRId32, lv_slider_get_value(slider));
+      lv_obj_align_to(label_slider, slider, LV_ALIGN_OUT_TOP_MID, 0, -15); /*Align top of the slider*/
     }
   }
 
@@ -279,9 +324,7 @@ void loop()
     lv_obj_add_event_cb(btn1, counter_event_handler, LV_EVENT_ALL, NULL);
 
     lv_obj_set_pos(btn1, 20, 20);   /*Set its position*/
-    lv_obj_set_size(btn1, 250, 50);   /*Set its size*/
-
-    
+    lv_obj_set_size(btn1, 250, 50); /*Set its size*/
 
     label = lv_label_create(btn1);
     lv_label_set_text(label, "Button");
@@ -292,7 +335,7 @@ void loop()
     lv_obj_add_event_cb(btn2, toggle_event_handler, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(btn2, LV_OBJ_FLAG_CHECKABLE);
     lv_obj_set_pos(btn2, 20, 80);   /*Set its position*/
-    lv_obj_set_size(btn2, 250, 50);   /*Set its size*/
+    lv_obj_set_size(btn2, 250, 50); /*Set its size*/
 
     lv_label_set_text(label, "Toggle Button");
     lv_obj_center(label);
@@ -300,21 +343,21 @@ void loop()
     lv_obj_t *cb1 = lv_checkbox_create(lv_scr_act());
     lv_obj_add_event_cb(cb1, checkbox_event_handler, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(cb1, LV_OBJ_FLAG_CHECKABLE);
-    lv_obj_set_pos(cb1, 250, 170);   /*Set its position*/
-    lv_obj_set_size(cb1, 120, 50);   /*Set its size*/
+    lv_obj_set_pos(cb1, 250, 170); /*Set its position*/
+    lv_obj_set_size(cb1, 120, 50); /*Set its size*/
     lv_checkbox_set_text_static(cb1, "Fan ON");
 
     lv_obj_t *sw1 = lv_switch_create(lv_scr_act());
     lv_obj_add_event_cb(sw1, switch_event_handler, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(sw1, LV_OBJ_FLAG_CHECKABLE);
-    lv_obj_set_pos(sw1, 50, 210);   /*Set its position*/
-    
+    lv_obj_set_pos(sw1, 50, 210); /*Set its position*/
+
     lv_obj_t *sl1 = lv_slider_create(lv_scr_act());
     lv_obj_add_event_cb(sl1, slider_event_handler, LV_EVENT_ALL, NULL);
     lv_slider_set_range(sl1, 0, 100);
-    lv_obj_set_pos(sl1, 20, 280);   /*Set its position*/
+    lv_obj_set_pos(sl1, 20, 280); /*Set its position*/
 
     label_slider = lv_label_create(sl1);
-    lv_label_set_text(label_slider, "0");  // set label text
-    lv_obj_align_to(label_slider, sl1, LV_ALIGN_TOP_RIGHT, 0, -15);    /*Align top of the slider*/
+    lv_label_set_text(label_slider, "0");                           // set label text
+    lv_obj_align_to(label_slider, sl1, LV_ALIGN_TOP_RIGHT, 0, -15); /*Align top of the slider*/
   }
