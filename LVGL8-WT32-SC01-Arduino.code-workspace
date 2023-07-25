@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"name": "LVGL8-WT32-SC01-Arduino",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"lv_label.h": "c",
+			"lv_examples.h": "c",
+			"lv_example_style.h": "c"
+		}
+	}
+}
