@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "Marlin_criskurtin",
+			"path": "../Marlin_criskurtin"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"lv_btn.h": "c"
+		}
+	}
+}
